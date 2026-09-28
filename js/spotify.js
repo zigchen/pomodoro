@@ -230,12 +230,15 @@ export function getDeviceId() {
   return deviceId;
 }
 
-export async function playContext(uri) {
+export async function playContext(uri, { offsetUri, positionMs } = {}) {
   if (!deviceId) throw new Error('The Spotify player is not ready yet.');
   const isTrack = uri.startsWith('spotify:track:');
+  const body = isTrack ? { uris: [uri] } : { context_uri: uri };
+  if (!isTrack && offsetUri) body.offset = { uri: offsetUri };
+  if (typeof positionMs === 'number') body.position_ms = positionMs;
   const res = await apiRequest(`/me/player/play?device_id=${deviceId}`, {
     method: 'PUT',
-    body: JSON.stringify(isTrack ? { uris: [uri] } : { context_uri: uri }),
+    body: JSON.stringify(body),
   });
   if (!res.ok && res.status !== 204) {
     throw new Error('Could not start playback.');

@@ -304,6 +304,45 @@ el('spotify-disconnect-btn').addEventListener('click', () => {
 });
 
 let loginPlayerInitialized = false;
+let hasAttemptedResume = false;
+
+const SP_LOGIN_STATE_KEY = 'pomodoro_spotify_login_state';
+
+function saveSpotifyLoginState(state) {
+  const contextUri = state.context && state.context.uri;
+  const track = state.track_window && state.track_window.current_track;
+  if (!contextUri && !track) return;
+  localStorage.setItem(
+    SP_LOGIN_STATE_KEY,
+    JSON.stringify({
+      contextUri: contextUri || null,
+      trackUri: track ? track.uri : null,
+      positionMs: state.position || 0,
+    })
+  );
+}
+
+async function resumeSavedSpotifyLoginState() {
+  const raw = localStorage.getItem(SP_LOGIN_STATE_KEY);
+  if (!raw) return;
+  let saved;
+  try {
+    saved = JSON.parse(raw);
+  } catch (e) {
+    return;
+  }
+  const target = saved.contextUri || saved.trackUri;
+  if (!target) return;
+  try {
+    await spotify.playContext(target, {
+      offsetUri: saved.contextUri ? saved.trackUri : undefined,
+      positionMs: saved.positionMs,
+    });
+  } catch (err) {
+    // Browsers can block programmatic playback until you interact with the
+    // page once after a fresh load -- that's expected, not an error to show.
+  }
+}
 
 async function ensureSpotifyLoginConnected() {
   if (!spotify.isConnected() || loginPlayerInitialized) return;
@@ -314,6 +353,10 @@ async function ensureSpotifyLoginConnected() {
       onReady: () => {
         setSpotifyLoginMessage('');
         showSpotifyConnectedUI(true);
+        if (!hasAttemptedResume) {
+          hasAttemptedResume = true;
+          resumeSavedSpotifyLoginState();
+        }
       },
       onStateChange: (state) => {
         if (!state) return;
@@ -324,6 +367,7 @@ async function ensureSpotifyLoginConnected() {
           el('track-art').src = (track.album.images && track.album.images[0] && track.album.images[0].url) || '';
         }
         el('sp-play-pause').textContent = state.paused ? '▶' : '⏸';
+        saveSpotifyLoginState(state);
       },
       onError: (message) => setSpotifyLoginMessage(message),
     });

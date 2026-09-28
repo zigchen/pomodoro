@@ -34,6 +34,8 @@ Then open **http://127.0.0.1:8080** (use `127.0.0.1`, not `localhost` — Spotif
 
 **Note:** actual playback in Log in mode (play/pause/skip, streaming audio from the browser tab) requires a **Spotify Premium** account — this is a restriction Spotify enforces for all apps, not something specific to this one. Free accounts can log in but playback controls won't work; Quick mode's previews work for everyone regardless.
 
+**Picking up where you left off:** in Log in mode, the app remembers whatever track/playlist was playing (and roughly where in it) and tries to resume automatically the next time the player reconnects — no need to re-paste the link. Browsers sometimes block automatic audio playback until you've clicked something on the page first; if it doesn't resume instantly, hitting play once will.
+
 ## Deploying it for real
 
 Any static host works. Two easy options:
