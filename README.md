@@ -3,8 +3,8 @@
 A clean, single-page Pomodoro timer with:
 
 - An adjustable circular + linear progress bar (focus / short break / long break lengths, and how many focus sessions before a long break)
-- A custom background: pick a preset gradient, upload your own image, or paste a YouTube link for a looping muted video background
-- A Spotify player with two modes: **Quick** (paste a link, get an embedded player, zero setup, previews only) or **Log in** (your real account, full tracks, play/pause/skip from inside the timer)
+- A custom background: pick a preset gradient, upload your own image, or paste a YouTube link for a looping muted video background (requests the highest resolution YouTube will give it)
+- A Spotify player with two modes: **Quick** (paste a link, get an embedded player, zero setup, previews only) or **Log in** (your real account, full tracks, play/pause/skip, and a search box to find songs/playlists by name instead of needing a link)
 
 It's plain HTML/CSS/JS — no build step, no framework, no server required. That makes it a drag-and-drop deploy. The **Quick** Spotify mode needs nothing extra; the **Log in** mode needs a little one-time setup because Spotify requires every app to have its own registered Client ID and redirect URL (see below).
 
@@ -36,6 +36,12 @@ Then open **http://127.0.0.1:8080** (use `127.0.0.1`, not `localhost` — Spotif
 
 **Picking up where you left off:** in Log in mode, the app remembers whatever track/playlist was playing (and roughly where in it) and tries to resume automatically the next time the player reconnects — no need to re-paste the link. Browsers sometimes block automatic audio playback until you've clicked something on the page first; if it doesn't resume instantly, hitting play once will.
 
+**Searching instead of pasting a link:** once connected in Log in mode, a search box appears above the "paste a link" field — type a song or playlist name and click a result to play it. Search needs a valid Spotify access token, so it's Log in mode only; Quick mode still needs a pasted link since it never logs in.
+
+## A note on YouTube background quality
+
+The video background asks YouTube's player for the highest resolution available (1080p or above) every time it starts and whenever quality changes. YouTube deprecated giving outside apps direct control over this back in 2021 — the player mostly decides on its own based on your connection speed and the video's available resolutions — so this is a best-effort request, not a guarantee. If a specific video was only ever uploaded at a lower resolution, there's nothing to force it higher than what exists.
+
 ## Deploying it for real
 
 Any static host works. Two easy options:
@@ -60,7 +66,8 @@ You can keep multiple redirect URIs registered in Spotify at once (e.g. your loc
 
 - **Presets** and your **uploaded image** are stored on your device (localStorage / IndexedDB) — nothing is uploaded anywhere.
 - The **YouTube background** always plays muted, since Spotify is the intended audio source and two audio tracks fighting would be annoying. You can still unmute it manually via YouTube's own controls if you don't want Spotify running (though the on-screen controls are hidden by design to keep it a clean backdrop).
-- Your background choice, timer settings, chosen Spotify mode, and last-loaded link/login all persist across reloads.
+- Every YouTube link you've used shows up as a small history list (thumbnail + title) under the paste box in Settings → Background, so you can flip back to one you tried before instead of hunting for the link again. Click one to switch to it, or the **×** to remove it. It keeps your last 12.
+- Your background choice, YouTube history, timer settings, chosen Spotify mode, and last-loaded link/login all persist across reloads.
 
 ## File overview
 

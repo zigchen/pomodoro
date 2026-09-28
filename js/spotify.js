@@ -214,6 +214,13 @@ async function apiRequest(path, options = {}) {
   });
 }
 
+export async function search(query, types = ['track', 'playlist'], limit = 6) {
+  const params = new URLSearchParams({ q: query, type: types.join(','), limit: String(limit) });
+  const res = await apiRequest(`/search?${params.toString()}`);
+  if (!res.ok) throw new Error('Spotify search failed.');
+  return res.json();
+}
+
 export function togglePlay() {
   return player && player.togglePlay();
 }

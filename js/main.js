@@ -174,18 +174,76 @@ el('bg-upload-input').addEventListener('change', async (e) => {
   showToast('Background updated');
 });
 
+function renderYouTubeHistory() {
+  const container = el('bg-youtube-history');
+  const history = bg.getYouTubeHistory();
+  container.innerHTML = '';
+  if (!history.length) {
+    container.classList.add('hidden');
+    return;
+  }
+  history.forEach((entry) => {
+    const row = document.createElement('div');
+    row.className = 'bg-yt-history-row';
+
+    const applyBtn = document.createElement('button');
+    applyBtn.type = 'button';
+    applyBtn.className = 'bg-yt-history-apply';
+
+    const thumb = document.createElement('img');
+    thumb.className = 'bg-yt-history-thumb';
+    thumb.alt = '';
+    thumb.src = `https://i.ytimg.com/vi/${entry.videoId}/mqdefault.jpg`;
+
+    const title = document.createElement('span');
+    title.className = 'bg-yt-history-title';
+    title.textContent = entry.title || entry.url;
+
+    applyBtn.appendChild(thumb);
+    applyBtn.appendChild(title);
+    applyBtn.addEventListener('click', async () => {
+      try {
+        await bg.applyYouTubeBackground(entry.url);
+        showToast('Background updated');
+        renderYouTubeHistory();
+      } catch (err) {
+        showToast(err.message);
+      }
+    });
+
+    const removeBtn = document.createElement('button');
+    removeBtn.type = 'button';
+    removeBtn.className = 'bg-yt-history-remove';
+    removeBtn.setAttribute('aria-label', 'Remove from history');
+    removeBtn.textContent = '×';
+    removeBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      bg.removeYouTubeHistoryEntry(entry.videoId);
+      renderYouTubeHistory();
+    });
+
+    row.appendChild(applyBtn);
+    row.appendChild(removeBtn);
+    container.appendChild(row);
+  });
+  container.classList.remove('hidden');
+}
+
 el('bg-youtube-form').addEventListener('submit', async (e) => {
   e.preventDefault();
   const url = el('bg-youtube-input').value;
   try {
     await bg.applyYouTubeBackground(url);
+    el('bg-youtube-input').value = '';
     showToast('Background updated');
+    renderYouTubeHistory();
   } catch (err) {
     showToast(err.message);
   }
 });
 
-bg.restoreBackground();
+renderYouTubeHistory();
+bg.restoreBackground().finally(renderYouTubeHistory);
 
 // ---------------------------------------------------------------------------
 // Spotify
@@ -381,6 +439,91 @@ el('sp-play-pause').addEventListener('click', () => spotify.togglePlay());
 el('sp-prev').addEventListener('click', () => spotify.previousTrack());
 el('sp-next').addEventListener('click', () => spotify.nextTrack());
 el('sp-volume').addEventListener('input', (e) => spotify.setVolume(Number(e.target.value) / 100));
+
+// --- Search songs/playlists instead of needing a link (Log in mode only, needs a token) ---
+
+let spSearchDebounce = null;
+
+function renderSpotifySearchResults(items) {
+  const resultsEl = el('sp-search-results');
+  resultsEl.innerHTML = '';
+  if (!items.length) {
+    resultsEl.classList.add('hidden');
+    return;
+  }
+  items.forEach((item) => {
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'sp-search-result';
+
+    const art = document.createElement('img');
+    art.className = 'sp-search-art';
+    art.alt = '';
+    art.src = item.art;
+
+    const text = document.createElement('span');
+    text.className = 'sp-search-text';
+    const title = document.createElement('span');
+    title.className = 'sp-search-title';
+    title.textContent = item.title;
+    const subtitle = document.createElement('span');
+    subtitle.className = 'sp-search-subtitle';
+    subtitle.textContent = item.subtitle;
+    text.appendChild(title);
+    text.appendChild(subtitle);
+
+    row.appendChild(art);
+    row.appendChild(text);
+    row.addEventListener('click', async () => {
+      try {
+        await spotify.playContext(item.uri);
+        setSpotifyLoginMessage('');
+        resultsEl.classList.add('hidden');
+        el('sp-search-input').value = '';
+      } catch (err) {
+        setSpotifyLoginMessage('Could not start playback. Make sure you have Spotify Premium.');
+      }
+    });
+    resultsEl.appendChild(row);
+  });
+  resultsEl.classList.remove('hidden');
+}
+
+async function runSpotifySearch(query) {
+  try {
+    const data = await spotify.search(query, ['track', 'playlist'], 6);
+    const items = [];
+    (data.tracks ? data.tracks.items : []).forEach((t) => {
+      items.push({
+        uri: t.uri,
+        title: t.name,
+        subtitle: t.artists.map((a) => a.name).join(', '),
+        art: (t.album.images && t.album.images[t.album.images.length - 1] && t.album.images[t.album.images.length - 1].url) || '',
+      });
+    });
+    (data.playlists ? data.playlists.items : []).filter(Boolean).forEach((p) => {
+      items.push({
+        uri: p.uri,
+        title: p.name,
+        subtitle: p.owner && p.owner.display_name ? `Playlist · ${p.owner.display_name}` : 'Playlist',
+        art: (p.images && p.images[0] && p.images[0].url) || '',
+      });
+    });
+    renderSpotifySearchResults(items);
+  } catch (err) {
+    renderSpotifySearchResults([]);
+  }
+}
+
+el('sp-search-input').addEventListener('input', (e) => {
+  clearTimeout(spSearchDebounce);
+  const query = e.target.value.trim();
+  if (!query) {
+    renderSpotifySearchResults([]);
+    return;
+  }
+  spSearchDebounce = setTimeout(() => runSpotifySearch(query), 350);
+});
 
 el('sp-login-play-form').addEventListener('submit', async (e) => {
   e.preventDefault();

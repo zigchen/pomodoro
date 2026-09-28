@@ -91,8 +91,14 @@
             <button id="sp-next" class="icon-btn" title="Next">⏭</button>
             <input id="sp-volume" type="range" min="0" max="100" value="50" title="Volume" />
           </div>
+
+          <div class="sp-search-wrap">
+            <input id="sp-search-input" type="text" placeholder="Search for a song or playlist" />
+            <div id="sp-search-results" class="sp-search-results hidden"></div>
+          </div>
+
           <form id="sp-login-play-form" class="inline-form">
-            <input id="sp-login-play-link" type="text" placeholder="Paste a Spotify playlist/album/track link" />
+            <input id="sp-login-play-link" type="text" placeholder="...or paste a Spotify link" />
             <button type="submit" class="secondary-btn">Play</button>
           </form>
           <button id="spotify-disconnect-btn" class="text-btn">Disconnect</button>
@@ -148,6 +154,7 @@
           <button type="submit" class="secondary-btn">Set</button>
         </form>
         <p class="hint">The video plays muted so it won't clash with Spotify audio.</p>
+        <div id="bg-youtube-history" class="bg-yt-history hidden"></div>
       </div>
 
       <div class="tab-panel hidden" data-tab-panel="spotify">

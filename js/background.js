@@ -2,7 +2,9 @@
 // IndexedDB), or a YouTube video turned into a muted, looping, full-viewport
 // backdrop via the YouTube IFrame API.
 
-import { idbSet, idbGet, BG_MODE_KEY, BG_VALUE_KEY } from './storage.js';
+import { idbSet, idbGet, BG_MODE_KEY, BG_VALUE_KEY, BG_YT_HISTORY_KEY } from './storage.js';
+
+const YT_HISTORY_LIMIT = 12;
 
 export const PRESETS = {
   sunset: 'linear-gradient(135deg, #ff9966, #ff5e62)',
@@ -80,6 +82,44 @@ export function extractYouTubeId(url) {
   return null;
 }
 
+export function getYouTubeHistory() {
+  try {
+    const raw = localStorage.getItem(BG_YT_HISTORY_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+}
+
+function setYouTubeHistory(list) {
+  localStorage.setItem(BG_YT_HISTORY_KEY, JSON.stringify(list));
+}
+
+export function removeYouTubeHistoryEntry(videoId) {
+  setYouTubeHistory(getYouTubeHistory().filter((entry) => entry.videoId !== videoId));
+}
+
+async function fetchYouTubeTitle(videoId) {
+  try {
+    const oembedUrl = `https://www.youtube.com/oembed?url=${encodeURIComponent(
+      `https://www.youtube.com/watch?v=${videoId}`
+    )}&format=json`;
+    const res = await fetch(oembedUrl);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.title || null;
+  } catch (e) {
+    return null;
+  }
+}
+
+async function recordYouTubeHistoryEntry(url, videoId) {
+  const existing = getYouTubeHistory().filter((entry) => entry.videoId !== videoId);
+  const title = await fetchYouTubeTitle(videoId);
+  const entry = { videoId, url, title: title || url };
+  setYouTubeHistory([entry, ...existing].slice(0, YT_HISTORY_LIMIT));
+}
+
 function loadYouTubeApi() {
   return new Promise((resolve) => {
     if (window.YT && window.YT.Player) return resolve(window.YT);
@@ -95,6 +135,18 @@ function loadYouTubeApi() {
       resolve(window.YT);
     };
   });
+}
+
+function requestHighestQuality(player) {
+  try {
+    const levels = player.getAvailableQualityLevels ? player.getAvailableQualityLevels() : [];
+    const preferredOrder = ['highres', 'hd1080'];
+    const target = preferredOrder.find((q) => levels.includes(q)) || levels[0];
+    if (target) player.setPlaybackQuality(target);
+  } catch (e) {
+    // YouTube may ignore this entirely -- since 2021 the player mostly picks
+    // quality automatically and third-party quality control is best-effort.
+  }
 }
 
 function sizeYouTubeIframe() {
@@ -151,8 +203,10 @@ export async function applyYouTubeBackground(url) {
       onReady: (e) => {
         e.target.mute();
         e.target.playVideo();
+        requestHighestQuality(e.target);
         sizeYouTubeIframe();
       },
+      onPlaybackQualityChange: (e) => requestHighestQuality(e.target),
     },
   });
 
@@ -166,6 +220,12 @@ export async function applyYouTubeBackground(url) {
 
   localStorage.setItem(BG_MODE_KEY, 'youtube');
   localStorage.setItem(BG_VALUE_KEY, url.trim());
+
+  try {
+    await recordYouTubeHistoryEntry(url.trim(), videoId);
+  } catch (e) {
+    // History is a nice-to-have -- don't let it block the background change.
+  }
 }
 
 export async function restoreBackground() {

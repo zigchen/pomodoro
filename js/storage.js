@@ -27,6 +27,7 @@ export function saveSettings(settings) {
 
 export const BG_MODE_KEY = 'pomodoro_bg_mode';
 export const BG_VALUE_KEY = 'pomodoro_bg_value';
+export const BG_YT_HISTORY_KEY = 'pomodoro_bg_yt_history';
 
 const DB_NAME = 'pomodoro-db';
 const STORE_NAME = 'kv';
