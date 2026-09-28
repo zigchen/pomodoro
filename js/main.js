@@ -1,0 +1,381 @@
+import { loadSettings, saveSettings } from './storage.js';
+import { PomodoroTimer } from './timer.js';
+import * as bg from './background.js';
+import * as spotify from './spotify.js';
+
+const el = (id) => document.getElementById(id);
+
+const settings = loadSettings();
+const timer = new PomodoroTimer(settings);
+
+// ---------------------------------------------------------------------------
+// Timer UI
+// ---------------------------------------------------------------------------
+
+const timeDisplay = el('time-display');
+const modeLabel = el('mode-label');
+const sessionCount = el('session-count');
+const ringProgress = el('ring-progress');
+const linearFill = el('linear-bar-fill');
+const startPauseBtn = el('start-pause-btn');
+const resetBtn = el('reset-btn');
+const skipBtn = el('skip-btn');
+
+const RING_RADIUS = 90;
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS;
+ringProgress.style.strokeDasharray = `${RING_CIRCUMFERENCE}`;
+
+const MODE_LABELS = { focus: 'Focus', short: 'Short Break', long: 'Long Break' };
+
+function formatTime(totalSeconds) {
+  const s = Math.max(0, Math.round(totalSeconds));
+  const m = Math.floor(s / 60);
+  const sec = s % 60;
+  return `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
+
+function renderTimer() {
+  const remainingFraction = timer.total > 0 ? timer.remaining / timer.total : 0;
+  timeDisplay.textContent = formatTime(timer.remaining);
+  modeLabel.textContent = MODE_LABELS[timer.mode];
+  sessionCount.textContent = `Session ${timer.completedFocusSessions + 1}`;
+  ringProgress.style.strokeDashoffset = `${RING_CIRCUMFERENCE * (1 - remainingFraction)}`;
+  linearFill.style.width = `${(1 - remainingFraction) * 100}%`;
+  document.title = `${formatTime(timer.remaining)} · ${MODE_LABELS[timer.mode]}`;
+  startPauseBtn.textContent = timer.running ? 'Pause' : 'Start';
+  document.body.classList.toggle('mode-break', timer.mode !== 'focus');
+}
+
+function playChime() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const now = ctx.currentTime;
+    [0, 0.18, 0.36].forEach((t, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = i === 2 ? 880 : 660;
+      gain.gain.setValueAtTime(0.0001, now + t);
+      gain.gain.exponentialRampToValueAtTime(0.3, now + t + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, now + t + 0.16);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(now + t);
+      osc.stop(now + t + 0.2);
+    });
+  } catch (e) {
+    /* ignore -- audio isn't essential */
+  }
+}
+
+function notifySessionEnd(nextModeLabel) {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+    new Notification('Pomodoro', { body: `Time's up! Starting ${nextModeLabel}.` });
+  }
+}
+
+timer.addEventListener('tick', renderTimer);
+timer.addEventListener('statechange', renderTimer);
+timer.addEventListener('modechange', () => {
+  renderTimer();
+  if (settings.autoPauseSpotify && spotify.isConnected()) {
+    if (timer.mode === 'focus') {
+      spotify.resumePlayback().catch(() => {});
+    } else {
+      spotify.pausePlayback().catch(() => {});
+    }
+  }
+});
+timer.addEventListener('complete', () => {
+  playChime();
+  notifySessionEnd(MODE_LABELS[timer.mode]);
+});
+
+startPauseBtn.addEventListener('click', () => {
+  if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+  if (timer.running) {
+    timer.pause();
+  } else {
+    timer.start();
+  }
+});
+resetBtn.addEventListener('click', () => timer.reset());
+skipBtn.addEventListener('click', () => timer.skip());
+el('restart-sessions-btn').addEventListener('click', () => {
+  timer.restartSessionCount();
+  showToast('Session count restarted');
+});
+
+renderTimer();
+
+// ---------------------------------------------------------------------------
+// Settings drawer
+// ---------------------------------------------------------------------------
+
+const settingsOverlay = el('settings-overlay');
+el('settings-btn').addEventListener('click', () => settingsOverlay.classList.remove('hidden'));
+el('settings-close-btn').addEventListener('click', () => settingsOverlay.classList.add('hidden'));
+settingsOverlay.addEventListener('click', (e) => {
+  if (e.target === settingsOverlay) settingsOverlay.classList.add('hidden');
+});
+
+function selectTab(tabName) {
+  document.querySelectorAll('.tab-btn').forEach((b) => b.classList.toggle('active', b.dataset.tab === tabName));
+  document.querySelectorAll('.tab-panel').forEach((p) => {
+    p.classList.toggle('hidden', p.dataset.tabPanel !== tabName);
+  });
+}
+
+document.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => selectTab(btn.dataset.tab));
+});
+
+el('setting-focus').value = settings.focusMin;
+el('setting-short').value = settings.shortBreakMin;
+el('setting-long').value = settings.longBreakMin;
+el('setting-sessions').value = settings.sessionsBeforeLongBreak;
+el('setting-autopause').checked = settings.autoPauseSpotify;
+
+el('save-timer-settings').addEventListener('click', () => {
+  settings.focusMin = Number(el('setting-focus').value) || 25;
+  settings.shortBreakMin = Number(el('setting-short').value) || 5;
+  settings.longBreakMin = Number(el('setting-long').value) || 15;
+  settings.sessionsBeforeLongBreak = Number(el('setting-sessions').value) || 4;
+  settings.autoPauseSpotify = el('setting-autopause').checked;
+  saveSettings(settings);
+  timer.updateSettings(settings);
+  showToast('Timer settings saved');
+});
+
+// ---------------------------------------------------------------------------
+// Background
+// ---------------------------------------------------------------------------
+
+const presetContainer = el('preset-swatches');
+Object.entries(bg.PRESETS).forEach(([name, gradient]) => {
+  const swatch = document.createElement('button');
+  swatch.type = 'button';
+  swatch.className = 'swatch';
+  swatch.style.background = gradient;
+  swatch.title = name;
+  swatch.setAttribute('aria-label', name);
+  swatch.addEventListener('click', () => {
+    bg.applyPreset(name);
+    showToast('Background updated');
+  });
+  presetContainer.appendChild(swatch);
+});
+
+el('bg-upload-input').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  await bg.applyUploadedImage(file);
+  showToast('Background updated');
+});
+
+el('bg-youtube-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const url = el('bg-youtube-input').value;
+  try {
+    await bg.applyYouTubeBackground(url);
+    showToast('Background updated');
+  } catch (err) {
+    showToast(err.message);
+  }
+});
+
+bg.restoreBackground();
+
+// ---------------------------------------------------------------------------
+// Spotify
+// ---------------------------------------------------------------------------
+
+const SP_MODE_KEY = 'pomodoro_spotify_mode';
+
+function selectSpotifyMode(mode) {
+  document.querySelectorAll('.spotify-mode-tabs .tab-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.spMode === mode);
+  });
+  document.querySelectorAll('.sp-mode-panel').forEach((p) => {
+    p.classList.toggle('hidden', p.dataset.spModePanel !== mode);
+  });
+  localStorage.setItem(SP_MODE_KEY, mode);
+  if (mode === 'login') ensureSpotifyLoginConnected();
+}
+
+document.querySelectorAll('.spotify-mode-tabs .tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => selectSpotifyMode(btn.dataset.spMode));
+});
+
+// --- Quick mode: paste a link, get Spotify's own embed. No login needed. ---
+
+const SP_LINK_KEY = 'pomodoro_spotify_link';
+const SP_DEFAULT_MESSAGE =
+  "Paste a Spotify playlist, album, or track link (Share → Copy Link in Spotify). No login needed — Spotify may prompt you to sign in for full tracks, or it'll play 30-second previews otherwise.";
+
+const spMessage = el('spotify-message');
+const spEmbedWrap = el('spotify-embed-wrap');
+const spEmbed = el('spotify-embed');
+
+function setSpotifyMessage(msg) {
+  spMessage.textContent = msg || SP_DEFAULT_MESSAGE;
+}
+
+function spotifyEmbedUrl(link) {
+  try {
+    const u = new URL(link.trim());
+    if (!u.hostname.includes('spotify.com')) return null;
+    const parts = u.pathname.split('/').filter(Boolean);
+    const idx = parts.findIndex((p) => ['playlist', 'album', 'track', 'artist', 'episode', 'show'].includes(p));
+    if (idx === -1) return null;
+    const type = parts[idx];
+    const id = parts[idx + 1];
+    if (!id) return null;
+    return `https://open.spotify.com/embed/${type}/${id}?utm_source=generator&theme=0`;
+  } catch (e) {
+    return null;
+  }
+}
+
+function loadSpotifyEmbed(link) {
+  const url = spotifyEmbedUrl(link);
+  if (!url) {
+    setSpotifyMessage("That doesn't look like a valid Spotify link. Use Spotify's Share → Copy Link.");
+    return;
+  }
+  spEmbed.src = url;
+  spEmbedWrap.classList.remove('hidden');
+  setSpotifyMessage('');
+  localStorage.setItem(SP_LINK_KEY, link.trim());
+}
+
+el('sp-play-form').addEventListener('submit', (e) => {
+  e.preventDefault();
+  loadSpotifyEmbed(el('sp-play-link').value);
+});
+
+setSpotifyMessage('');
+const savedSpotifyLink = localStorage.getItem(SP_LINK_KEY);
+if (savedSpotifyLink) {
+  el('sp-play-link').value = savedSpotifyLink;
+  loadSpotifyEmbed(savedSpotifyLink);
+}
+
+// --- Log in mode: real Spotify account login + playback control ---
+
+const spDisconnected = el('spotify-disconnected');
+const spConnected = el('spotify-connected');
+const spLoginMessage = el('spotify-login-message');
+
+el('setting-spotify-client-id').value = localStorage.getItem('sp_client_id') || '';
+el('redirect-uri-display').textContent = spotify.getRedirectUri();
+el('copy-redirect-btn').addEventListener('click', () => {
+  navigator.clipboard.writeText(spotify.getRedirectUri());
+  showToast('Redirect URI copied');
+});
+
+function setSpotifyLoginMessage(msg) {
+  spLoginMessage.textContent = msg || '';
+}
+
+function showSpotifyConnectedUI(connected) {
+  spDisconnected.classList.toggle('hidden', connected);
+  spConnected.classList.toggle('hidden', !connected);
+}
+
+el('spotify-connect-btn').addEventListener('click', async () => {
+  const clientId = el('setting-spotify-client-id').value.trim();
+  if (!clientId) {
+    setSpotifyLoginMessage('Enter your Spotify Client ID in Settings → Spotify first.');
+    settingsOverlay.classList.remove('hidden');
+    selectTab('spotify');
+    return;
+  }
+  localStorage.setItem('sp_client_id', clientId);
+  await spotify.beginLogin(clientId);
+});
+
+el('spotify-disconnect-btn').addEventListener('click', () => {
+  spotify.logout();
+  loginPlayerInitialized = false;
+  showSpotifyConnectedUI(false);
+  showToast('Disconnected from Spotify');
+});
+
+let loginPlayerInitialized = false;
+
+async function ensureSpotifyLoginConnected() {
+  if (!spotify.isConnected() || loginPlayerInitialized) return;
+  loginPlayerInitialized = true;
+  setSpotifyLoginMessage('Connecting to Spotify…');
+  try {
+    await spotify.initPlayer({
+      onReady: () => {
+        setSpotifyLoginMessage('');
+        showSpotifyConnectedUI(true);
+      },
+      onStateChange: (state) => {
+        if (!state) return;
+        const track = state.track_window && state.track_window.current_track;
+        if (track) {
+          el('track-name').textContent = track.name;
+          el('track-artist').textContent = track.artists.map((a) => a.name).join(', ');
+          el('track-art').src = (track.album.images && track.album.images[0] && track.album.images[0].url) || '';
+        }
+        el('sp-play-pause').textContent = state.paused ? '▶' : '⏸';
+      },
+      onError: (message) => setSpotifyLoginMessage(message),
+    });
+  } catch (err) {
+    loginPlayerInitialized = false;
+    setSpotifyLoginMessage('Could not start the Spotify player. Make sure you have Spotify Premium.');
+  }
+}
+
+el('sp-play-pause').addEventListener('click', () => spotify.togglePlay());
+el('sp-prev').addEventListener('click', () => spotify.previousTrack());
+el('sp-next').addEventListener('click', () => spotify.nextTrack());
+el('sp-volume').addEventListener('input', (e) => spotify.setVolume(Number(e.target.value) / 100));
+
+el('sp-login-play-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const link = el('sp-login-play-link').value.trim();
+  const uri = spotify.linkToUri(link);
+  if (!uri) {
+    setSpotifyLoginMessage("That doesn't look like a valid Spotify link.");
+    return;
+  }
+  try {
+    await spotify.playContext(uri);
+    setSpotifyLoginMessage('');
+  } catch (err) {
+    setSpotifyLoginMessage('Could not start playback. Make sure you have Spotify Premium.');
+  }
+});
+
+async function initSpotifyLogin() {
+  let cameBackFromAuth = false;
+  try {
+    cameBackFromAuth = await spotify.handleRedirectIfPresent();
+  } catch (err) {
+    setSpotifyLoginMessage(err.message);
+  }
+  const savedMode = localStorage.getItem(SP_MODE_KEY) || 'quick';
+  selectSpotifyMode(cameBackFromAuth ? 'login' : savedMode);
+  if (cameBackFromAuth) showToast('Connected to Spotify');
+}
+initSpotifyLogin();
+
+// ---------------------------------------------------------------------------
+// Toast
+// ---------------------------------------------------------------------------
+
+let toastTimeout = null;
+function showToast(message) {
+  const toast = el('toast');
+  toast.textContent = message;
+  toast.classList.remove('hidden');
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => toast.classList.add('hidden'), 2500);
+}

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Pomodoro</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div id="bg-layer">
+    <div id="bg-image-layer" class="bg-layer-el"></div>
+    <div id="bg-yt-layer" class="bg-layer-el"><div id="yt-player"></div></div>
+    <div id="bg-overlay"></div>
+  </div>
+
+  <div class="app">
+    <header class="app-header">
+      <h1 class="app-title">Pomodoro</h1>
+      <button id="settings-btn" class="icon-btn" aria-label="Settings" title="Settings">⚙</button>
+    </header>
+
+    <main class="timer-card">
+      <p id="mode-label" class="mode-label">Focus</p>
+
+      <div class="ring-wrap">
+        <svg class="ring" viewBox="0 0 200 200">
+          <circle class="ring-track" cx="100" cy="100" r="90"></circle>
+          <circle id="ring-progress" class="ring-progress" cx="100" cy="100" r="90"></circle>
+        </svg>
+        <div class="ring-center">
+          <span id="time-display">25:00</span>
+          <span id="session-count" class="session-count">Session 1</span>
+        </div>
+      </div>
+
+      <div class="linear-bar">
+        <div id="linear-bar-fill" class="linear-bar-fill"></div>
+      </div>
+
+      <div class="controls">
+        <button id="reset-btn" class="icon-btn" title="Reset timer">⟲</button>
+        <button id="start-pause-btn" class="primary-btn">Start</button>
+        <button id="skip-btn" class="icon-btn" title="Skip">⏭</button>
+      </div>
+
+      <button id="restart-sessions-btn" class="text-btn center-text-btn" title="Restart session count back to 1">Restart session count</button>
+    </main>
+
+    <section id="spotify-panel" class="panel spotify-panel">
+      <div class="tabs spotify-mode-tabs">
+        <button class="tab-btn active" data-sp-mode="quick">Quick</button>
+        <button class="tab-btn" data-sp-mode="login">Log in</button>
+      </div>
+
+      <div class="sp-mode-panel" data-sp-mode-panel="quick">
+        <form id="sp-play-form" class="inline-form">
+          <input id="sp-play-link" type="text" placeholder="Paste a Spotify playlist/album/track link" />
+          <button type="submit" class="secondary-btn">Load</button>
+        </form>
+        <div id="spotify-embed-wrap" class="spotify-embed-wrap hidden">
+          <iframe
+            id="spotify-embed"
+            width="100%"
+            height="152"
+            frameborder="0"
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture"
+            loading="lazy"
+            title="Spotify player"
+          ></iframe>
+        </div>
+        <p id="spotify-message" class="spotify-message">Paste a Spotify playlist, album, or track link (Share → Copy Link in Spotify). No login needed — Spotify may prompt you to sign in for full tracks, or it'll play 30-second previews otherwise.</p>
+      </div>
+
+      <div class="sp-mode-panel hidden" data-sp-mode-panel="login">
+        <div id="spotify-disconnected" class="spotify-state">
+          <p>Log in with your Spotify account to play real tracks (not just previews), and control play/pause/skip without leaving the timer.</p>
+          <button id="spotify-connect-btn" class="secondary-btn">Connect Spotify</button>
+        </div>
+        <div id="spotify-connected" class="spotify-state hidden">
+          <div class="now-playing">
+            <img id="track-art" class="track-art" alt="" />
+            <div class="track-meta">
+              <p id="track-name" class="track-name">Nothing playing</p>
+              <p id="track-artist" class="track-artist"></p>
+            </div>
+          </div>
+          <div class="spotify-controls">
+            <button id="sp-prev" class="icon-btn" title="Previous">⏮</button>
+            <button id="sp-play-pause" class="icon-btn icon-btn-lg" title="Play/Pause">▶</button>
+            <button id="sp-next" class="icon-btn" title="Next">⏭</button>
+            <input id="sp-volume" type="range" min="0" max="100" value="50" title="Volume" />
+          </div>
+          <form id="sp-login-play-form" class="inline-form">
+            <input id="sp-login-play-link" type="text" placeholder="Paste a Spotify playlist/album/track link" />
+            <button type="submit" class="secondary-btn">Play</button>
+          </form>
+          <button id="spotify-disconnect-btn" class="text-btn">Disconnect</button>
+        </div>
+        <p id="spotify-login-message" class="spotify-message"></p>
+      </div>
+    </section>
+  </div>
+
+  <div id="settings-overlay" class="settings-overlay hidden">
+    <div class="settings-panel">
+      <div class="settings-header">
+        <h2>Settings</h2>
+        <button id="settings-close-btn" class="icon-btn" aria-label="Close">✕</button>
+      </div>
+
+      <div class="tabs">
+        <button class="tab-btn active" data-tab="timer">Timer</button>
+        <button class="tab-btn" data-tab="background">Background</button>
+        <button class="tab-btn" data-tab="spotify">Spotify</button>
+      </div>
+
+      <div class="tab-panel" data-tab-panel="timer">
+        <label>Focus (minutes)
+          <input id="setting-focus" type="number" min="1" max="180" />
+        </label>
+        <label>Short break (minutes)
+          <input id="setting-short" type="number" min="1" max="60" />
+        </label>
+        <label>Long break (minutes)
+          <input id="setting-long" type="number" min="1" max="90" />
+        </label>
+        <label>Sessions before long break
+          <input id="setting-sessions" type="number" min="1" max="12" />
+        </label>
+        <label class="checkbox-label">
+          <input id="setting-autopause" type="checkbox" />
+          Auto-pause Spotify on breaks (Log in mode only)
+        </label>
+        <button id="save-timer-settings" class="secondary-btn">Save</button>
+      </div>
+
+      <div class="tab-panel hidden" data-tab-panel="background">
+        <h3>Presets</h3>
+        <div id="preset-swatches" class="preset-swatches"></div>
+
+        <h3>Upload an image</h3>
+        <input id="bg-upload-input" type="file" accept="image/*" />
+
+        <h3>YouTube video</h3>
+        <form id="bg-youtube-form" class="inline-form">
+          <input id="bg-youtube-input" type="text" placeholder="Paste a YouTube link" />
+          <button type="submit" class="secondary-btn">Set</button>
+        </form>
+        <p class="hint">The video plays muted so it won't clash with Spotify audio.</p>
+      </div>
+
+      <div class="tab-panel hidden" data-tab-panel="spotify">
+        <p class="hint">Only needed for the <strong>Log in</strong> mode in the Spotify panel — the <strong>Quick</strong> mode needs none of this.</p>
+        <label>Spotify Client ID
+          <input id="setting-spotify-client-id" type="text" placeholder="Paste your Client ID" />
+        </label>
+        <p class="hint">Register this exact redirect URI in your Spotify app settings:</p>
+        <div class="redirect-uri-box">
+          <code id="redirect-uri-display"></code>
+          <button id="copy-redirect-btn" class="text-btn">Copy</button>
+        </div>
+        <p class="hint">See README.md for step-by-step setup instructions.</p>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>
