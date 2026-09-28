@@ -400,17 +400,27 @@ function setQueueToggleUI() {
 }
 setQueueToggleUI();
 
-function renderSpotifyQueue(data) {
+function showSpotifyQueueNote(message) {
   const listEl = el('sp-queue-list');
   listEl.innerHTML = '';
+  const note = document.createElement('p');
+  note.className = 'hint';
+  note.textContent = message;
+  listEl.appendChild(note);
+}
+
+function renderSpotifyQueue(data) {
   const upcoming = (data && data.queue) || [];
   if (!upcoming.length) {
-    const empty = document.createElement('p');
-    empty.className = 'hint';
-    empty.textContent = 'Nothing queued up next.';
-    listEl.appendChild(empty);
+    showSpotifyQueueNote(
+      data && data.currently_playing
+        ? 'Nothing queued up next.'
+        : "Nothing's playing yet — start a track first, then queued-up songs will show here."
+    );
     return;
   }
+  const listEl = el('sp-queue-list');
+  listEl.innerHTML = '';
   upcoming.slice(0, 10).forEach((track) => {
     const row = document.createElement('button');
     row.type = 'button';
@@ -453,7 +463,7 @@ async function refreshSpotifyQueue() {
   try {
     renderSpotifyQueue(await spotify.getQueue());
   } catch (err) {
-    // Queue view is a nice-to-have -- stay quiet on failure.
+    showSpotifyQueueNote("Couldn't load the queue — start playing something first, then try again.");
   }
 }
 
@@ -641,7 +651,7 @@ function renderSpotifySearchResults(items) {
           showToast('Added to queue');
           if (queueVisible) refreshSpotifyQueue();
         } catch (err) {
-          setSpotifyLoginMessage('Could not add to queue. Make sure playback is active and you have Premium.');
+          setSpotifyLoginMessage(err.message || 'Could not add to queue.');
         }
       });
       row.appendChild(queueBtn);

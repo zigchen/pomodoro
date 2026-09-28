@@ -233,6 +233,9 @@ export async function addToQueue(uri) {
     method: 'POST',
   });
   if (!res.ok && res.status !== 204) {
+    if (res.status === 404) {
+      throw new Error("Nothing's playing yet -- start a track first, then you can queue more up.");
+    }
     throw new Error('Could not add to queue.');
   }
 }
