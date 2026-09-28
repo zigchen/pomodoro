@@ -179,11 +179,14 @@
       </div>
 
       <div class="tab-panel hidden" data-tab-panel="spotify">
-        <p class="hint">Only needed for the <strong>Log in</strong> mode in the Spotify panel — the <strong>Quick</strong> mode needs none of this.</p>
-        <label>Spotify Client ID
-          <input id="setting-spotify-client-id" type="text" placeholder="Paste your Client ID" />
+        <p class="hint"><strong>Log in</strong> mode already works out of the box using this site's built-in Spotify connection — the <strong>Quick</strong> mode needs none of this either way.</p>
+        <label>Custom Client ID <span class="hint">(optional override)</span>
+          <div class="secret-input-wrap">
+            <input id="setting-spotify-client-id" type="password" autocomplete="off" placeholder="Only needed to use your own Spotify app" />
+            <button type="button" id="toggle-client-id-visibility" class="text-btn secret-toggle-btn">Show</button>
+          </div>
         </label>
-        <p class="hint">Register this exact redirect URI in your Spotify app settings:</p>
+        <p class="hint">Only fill this in if you want to use your own Spotify app instead of the built-in one — e.g. if the built-in one has hit Spotify's login limit. If so, register this exact redirect URI in your app's settings:</p>
         <div class="redirect-uri-box">
           <code id="redirect-uri-display"></code>
           <button id="copy-redirect-btn" class="text-btn">Copy</button>

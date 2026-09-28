@@ -2,9 +2,15 @@
 // the Web Playback SDK (streams audio from this browser tab), and small helpers
 // for turning a pasted playlist/album/track link into a playable URI.
 //
-// Requires the user to register their own Spotify app (see README.md) and paste
-// its Client ID into Settings -> Spotify. Playback control requires Premium --
-// that's a Spotify platform restriction, not something this code can work around.
+// A Client ID is not a secret -- Spotify's PKCE flow is designed to ship one
+// publicly in client-side apps like this. DEFAULT_CLIENT_ID lets Log in mode
+// work out of the box for any visitor; Settings -> Spotify can still override
+// it with a different Client ID (useful if this one hits Spotify's
+// Development Mode 25-user login cap -- see README.md). Playback control
+// itself requires Premium regardless of which Client ID is used -- that's a
+// Spotify platform restriction, not something this code can work around.
+
+export const DEFAULT_CLIENT_ID = '0dd470831c124298a5f3ec67b3d8dc6e';
 
 const AUTH_ENDPOINT = 'https://accounts.spotify.com/authorize';
 const TOKEN_ENDPOINT = 'https://accounts.spotify.com/api/token';

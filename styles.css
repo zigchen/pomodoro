@@ -444,6 +444,17 @@ body.mode-break .primary-btn {
   align-items: center;
   gap: 10px;
   padding: 6px 4px;
+  width: 100%;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.sp-queue-row:hover {
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .sp-queue-art {
@@ -550,6 +561,22 @@ input[type="color"] {
 
 .center-text-btn {
   align-self: center;
+}
+
+.secret-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.secret-input-wrap input {
+  flex: 1;
+  min-width: 0;
+}
+
+.secret-toggle-btn {
+  align-self: center;
+  white-space: nowrap;
 }
 
 /* ---------------------------------------------------------------------- */

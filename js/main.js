@@ -369,6 +369,13 @@ el('copy-redirect-btn').addEventListener('click', () => {
   showToast('Redirect URI copied');
 });
 
+el('toggle-client-id-visibility').addEventListener('click', () => {
+  const input = el('setting-spotify-client-id');
+  const nowShowing = input.type === 'password';
+  input.type = nowShowing ? 'text' : 'password';
+  el('toggle-client-id-visibility').textContent = nowShowing ? 'Hide' : 'Show';
+});
+
 function setSpotifyLoginMessage(msg) {
   spLoginMessage.textContent = msg || '';
 }
@@ -405,8 +412,10 @@ function renderSpotifyQueue(data) {
     return;
   }
   upcoming.slice(0, 10).forEach((track) => {
-    const row = document.createElement('div');
+    const row = document.createElement('button');
+    row.type = 'button';
     row.className = 'sp-queue-row';
+    row.title = 'Play now';
 
     const art = document.createElement('img');
     art.className = 'sp-queue-art';
@@ -427,6 +436,15 @@ function renderSpotifyQueue(data) {
 
     row.appendChild(art);
     row.appendChild(text);
+    row.addEventListener('click', async () => {
+      try {
+        await spotify.playContext(track.uri);
+        setSpotifyLoginMessage('');
+        refreshSpotifyQueue();
+      } catch (err) {
+        setSpotifyLoginMessage('Could not start playback. Make sure you have Spotify Premium.');
+      }
+    });
     listEl.appendChild(row);
   });
 }
@@ -462,7 +480,7 @@ spQueueToggle.addEventListener('click', () => {
 });
 
 el('spotify-connect-btn').addEventListener('click', async () => {
-  const clientId = el('setting-spotify-client-id').value.trim();
+  const clientId = el('setting-spotify-client-id').value.trim() || spotify.DEFAULT_CLIENT_ID;
   if (!clientId) {
     setSpotifyLoginMessage('Enter your Spotify Client ID in Settings → Spotify first.');
     settingsOverlay.classList.remove('hidden');
