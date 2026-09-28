@@ -559,11 +559,14 @@ async function ensureSpotifyLoginConnected() {
       onReady: () => {
         setSpotifyLoginMessage('');
         showSpotifyConnectedUI(true);
+        let resumed = Promise.resolve();
         if (!hasAttemptedResume) {
           hasAttemptedResume = true;
-          resumeSavedSpotifyLoginState();
+          resumed = resumeSavedSpotifyLoginState();
         }
-        if (queueVisible) startSpotifyQueuePolling();
+        resumed.then(() => {
+          if (queueVisible) startSpotifyQueuePolling();
+        });
       },
       onStateChange: (state) => {
         if (!state) return;
