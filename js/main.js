@@ -2,6 +2,7 @@ import { loadSettings, saveSettings } from './storage.js';
 import { PomodoroTimer } from './timer.js';
 import * as bg from './background.js';
 import * as spotify from './spotify.js';
+import * as theme from './theme.js';
 
 const el = (id) => document.getElementById(id);
 
@@ -147,6 +148,41 @@ el('save-timer-settings').addEventListener('click', () => {
   timer.updateSettings(settings);
   showToast('Timer settings saved');
 });
+
+// ---------------------------------------------------------------------------
+// Theme (accent colors)
+// ---------------------------------------------------------------------------
+
+const accentPresetsContainer = el('accent-presets');
+const accentFocusInput = el('accent-focus-input');
+const accentBreakInput = el('accent-break-input');
+
+function applyAndSyncAccent(focus, breakColor) {
+  theme.applyAccentColors(focus, breakColor);
+  accentFocusInput.value = focus;
+  accentBreakInput.value = breakColor;
+}
+
+theme.ACCENT_PRESETS.forEach((preset) => {
+  const swatch = document.createElement('button');
+  swatch.type = 'button';
+  swatch.className = 'swatch';
+  swatch.style.background = `linear-gradient(135deg, ${preset.focus} 50%, ${preset.break} 50%)`;
+  swatch.title = preset.name;
+  swatch.setAttribute('aria-label', preset.name);
+  swatch.addEventListener('click', () => {
+    applyAndSyncAccent(preset.focus, preset.break);
+    showToast(`${preset.name} theme applied`);
+  });
+  accentPresetsContainer.appendChild(swatch);
+});
+
+accentFocusInput.addEventListener('input', () => applyAndSyncAccent(accentFocusInput.value, accentBreakInput.value));
+accentBreakInput.addEventListener('input', () => applyAndSyncAccent(accentFocusInput.value, accentBreakInput.value));
+
+const activeAccent = theme.restoreAccentColors();
+accentFocusInput.value = activeAccent.focus;
+accentBreakInput.value = activeAccent.break;
 
 // ---------------------------------------------------------------------------
 // Background
@@ -342,6 +378,89 @@ function showSpotifyConnectedUI(connected) {
   spConnected.classList.toggle('hidden', !connected);
 }
 
+// --- Upcoming queue view -- off by default, toggleable so it isn't distracting ---
+
+const SP_QUEUE_VISIBLE_KEY = 'pomodoro_spotify_queue_visible';
+let queueVisible = localStorage.getItem(SP_QUEUE_VISIBLE_KEY) === 'true';
+let queuePollTimer = null;
+
+const spQueueToggle = el('sp-queue-toggle');
+const spQueuePanel = el('sp-queue-panel');
+
+function setQueueToggleUI() {
+  spQueuePanel.classList.toggle('hidden', !queueVisible);
+  spQueueToggle.textContent = queueVisible ? 'Hide upcoming queue' : 'Show upcoming queue';
+}
+setQueueToggleUI();
+
+function renderSpotifyQueue(data) {
+  const listEl = el('sp-queue-list');
+  listEl.innerHTML = '';
+  const upcoming = (data && data.queue) || [];
+  if (!upcoming.length) {
+    const empty = document.createElement('p');
+    empty.className = 'hint';
+    empty.textContent = 'Nothing queued up next.';
+    listEl.appendChild(empty);
+    return;
+  }
+  upcoming.slice(0, 10).forEach((track) => {
+    const row = document.createElement('div');
+    row.className = 'sp-queue-row';
+
+    const art = document.createElement('img');
+    art.className = 'sp-queue-art';
+    art.alt = '';
+    const images = track.album && track.album.images;
+    art.src = (images && images[images.length - 1] && images[images.length - 1].url) || '';
+
+    const text = document.createElement('span');
+    text.className = 'sp-queue-text';
+    const title = document.createElement('span');
+    title.className = 'sp-queue-title';
+    title.textContent = track.name;
+    const subtitle = document.createElement('span');
+    subtitle.className = 'sp-queue-subtitle';
+    subtitle.textContent = (track.artists || []).map((a) => a.name).join(', ');
+    text.appendChild(title);
+    text.appendChild(subtitle);
+
+    row.appendChild(art);
+    row.appendChild(text);
+    listEl.appendChild(row);
+  });
+}
+
+async function refreshSpotifyQueue() {
+  try {
+    renderSpotifyQueue(await spotify.getQueue());
+  } catch (err) {
+    // Queue view is a nice-to-have -- stay quiet on failure.
+  }
+}
+
+function startSpotifyQueuePolling() {
+  refreshSpotifyQueue();
+  clearInterval(queuePollTimer);
+  queuePollTimer = setInterval(refreshSpotifyQueue, 12000);
+}
+
+function stopSpotifyQueuePolling() {
+  clearInterval(queuePollTimer);
+  queuePollTimer = null;
+}
+
+spQueueToggle.addEventListener('click', () => {
+  queueVisible = !queueVisible;
+  localStorage.setItem(SP_QUEUE_VISIBLE_KEY, String(queueVisible));
+  setQueueToggleUI();
+  if (queueVisible) {
+    startSpotifyQueuePolling();
+  } else {
+    stopSpotifyQueuePolling();
+  }
+});
+
 el('spotify-connect-btn').addEventListener('click', async () => {
   const clientId = el('setting-spotify-client-id').value.trim();
   if (!clientId) {
@@ -357,6 +476,7 @@ el('spotify-connect-btn').addEventListener('click', async () => {
 el('spotify-disconnect-btn').addEventListener('click', () => {
   spotify.logout();
   loginPlayerInitialized = false;
+  stopSpotifyQueuePolling();
   showSpotifyConnectedUI(false);
   showToast('Disconnected from Spotify');
 });
@@ -415,6 +535,7 @@ async function ensureSpotifyLoginConnected() {
           hasAttemptedResume = true;
           resumeSavedSpotifyLoginState();
         }
+        if (queueVisible) startSpotifyQueuePolling();
       },
       onStateChange: (state) => {
         if (!state) return;
@@ -452,9 +573,12 @@ function renderSpotifySearchResults(items) {
     return;
   }
   items.forEach((item) => {
-    const row = document.createElement('button');
-    row.type = 'button';
+    const row = document.createElement('div');
     row.className = 'sp-search-result';
+
+    const playBtn = document.createElement('button');
+    playBtn.type = 'button';
+    playBtn.className = 'sp-search-play';
 
     const art = document.createElement('img');
     art.className = 'sp-search-art';
@@ -472,9 +596,9 @@ function renderSpotifySearchResults(items) {
     text.appendChild(title);
     text.appendChild(subtitle);
 
-    row.appendChild(art);
-    row.appendChild(text);
-    row.addEventListener('click', async () => {
+    playBtn.appendChild(art);
+    playBtn.appendChild(text);
+    playBtn.addEventListener('click', async () => {
       try {
         await spotify.playContext(item.uri);
         setSpotifyLoginMessage('');
@@ -484,6 +608,27 @@ function renderSpotifySearchResults(items) {
         setSpotifyLoginMessage('Could not start playback. Make sure you have Spotify Premium.');
       }
     });
+    row.appendChild(playBtn);
+
+    if (item.kind === 'track') {
+      const queueBtn = document.createElement('button');
+      queueBtn.type = 'button';
+      queueBtn.className = 'sp-search-queue-btn';
+      queueBtn.textContent = '+';
+      queueBtn.title = 'Add to queue';
+      queueBtn.setAttribute('aria-label', `Add ${item.title} to queue`);
+      queueBtn.addEventListener('click', async () => {
+        try {
+          await spotify.addToQueue(item.uri);
+          showToast('Added to queue');
+          if (queueVisible) refreshSpotifyQueue();
+        } catch (err) {
+          setSpotifyLoginMessage('Could not add to queue. Make sure playback is active and you have Premium.');
+        }
+      });
+      row.appendChild(queueBtn);
+    }
+
     resultsEl.appendChild(row);
   });
   resultsEl.classList.remove('hidden');
@@ -499,6 +644,7 @@ async function runSpotifySearch(query) {
         title: t.name,
         subtitle: t.artists.map((a) => a.name).join(', '),
         art: (t.album.images && t.album.images[t.album.images.length - 1] && t.album.images[t.album.images.length - 1].url) || '',
+        kind: 'track',
       });
     });
     (data.playlists ? data.playlists.items : []).filter(Boolean).forEach((p) => {
@@ -507,6 +653,7 @@ async function runSpotifySearch(query) {
         title: p.name,
         subtitle: p.owner && p.owner.display_name ? `Playlist · ${p.owner.display_name}` : 'Playlist',
         art: (p.images && p.images[0] && p.images[0].url) || '',
+        kind: 'playlist',
       });
     });
     renderSpotifySearchResults(items);

@@ -101,6 +101,12 @@
             <input id="sp-login-play-link" type="text" placeholder="...or paste a Spotify link" />
             <button type="submit" class="secondary-btn">Play</button>
           </form>
+
+          <button id="sp-queue-toggle" type="button" class="text-btn center-text-btn">Show upcoming queue</button>
+          <div id="sp-queue-panel" class="sp-queue-panel hidden">
+            <div id="sp-queue-list" class="sp-queue-list"></div>
+          </div>
+
           <button id="spotify-disconnect-btn" class="text-btn">Disconnect</button>
         </div>
         <p id="spotify-login-message" class="spotify-message"></p>
@@ -117,6 +123,7 @@
 
       <div class="tabs">
         <button class="tab-btn active" data-tab="timer">Timer</button>
+        <button class="tab-btn" data-tab="theme">Theme</button>
         <button class="tab-btn" data-tab="background">Background</button>
         <button class="tab-btn" data-tab="spotify">Spotify</button>
       </div>
@@ -139,6 +146,20 @@
           Auto-pause Spotify on breaks (Log in mode only)
         </label>
         <button id="save-timer-settings" class="secondary-btn">Save</button>
+      </div>
+
+      <div class="tab-panel hidden" data-tab-panel="theme">
+        <h3>Presets</h3>
+        <div id="accent-presets" class="preset-swatches"></div>
+
+        <h3>Custom colors</h3>
+        <label>Focus color
+          <input id="accent-focus-input" type="color" />
+        </label>
+        <label>Break color
+          <input id="accent-break-input" type="color" />
+        </label>
+        <p class="hint">Each preset swatch shows both colors — the top-left half is the focus color, bottom-right is the break color.</p>
       </div>
 
       <div class="tab-panel hidden" data-tab-panel="background">

@@ -221,6 +221,22 @@ export async function search(query, types = ['track', 'playlist'], limit = 6) {
   return res.json();
 }
 
+export async function addToQueue(uri) {
+  if (!deviceId) throw new Error('The Spotify player is not ready yet.');
+  const res = await apiRequest(`/me/player/queue?uri=${encodeURIComponent(uri)}&device_id=${deviceId}`, {
+    method: 'POST',
+  });
+  if (!res.ok && res.status !== 204) {
+    throw new Error('Could not add to queue.');
+  }
+}
+
+export async function getQueue() {
+  const res = await apiRequest('/me/player/queue');
+  if (!res.ok) throw new Error('Could not fetch the queue.');
+  return res.json();
+}
+
 export function togglePlay() {
   return player && player.togglePlay();
 }

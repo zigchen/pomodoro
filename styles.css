@@ -356,6 +356,13 @@ body.mode-break .primary-btn {
 
 .sp-search-result {
   display: flex;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.sp-search-play {
+  flex: 1;
+  display: flex;
   align-items: center;
   gap: 10px;
   padding: 8px;
@@ -365,11 +372,27 @@ body.mode-break .primary-btn {
   cursor: pointer;
   text-align: left;
   color: var(--text);
-  width: 100%;
+  min-width: 0;
 }
 
-.sp-search-result:hover {
+.sp-search-play:hover {
   background: rgba(255, 255, 255, 0.14);
+}
+
+.sp-search-queue-btn {
+  width: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--glass-border);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 1.1rem;
+  flex-shrink: 0;
+}
+
+.sp-search-queue-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: var(--text);
 }
 
 .sp-search-art {
@@ -397,6 +420,57 @@ body.mode-break .primary-btn {
 
 .sp-search-subtitle {
   font-size: 0.76rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-queue-panel {
+  display: flex;
+  flex-direction: column;
+}
+
+.sp-queue-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.sp-queue-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+}
+
+.sp-queue-art {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  object-fit: cover;
+  background: rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+}
+
+.sp-queue-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sp-queue-title {
+  font-size: 0.83rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sp-queue-subtitle {
+  font-size: 0.75rem;
   color: var(--text-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -436,6 +510,16 @@ input[type="number"] {
 
 input[type="text"]::placeholder {
   color: rgba(245, 245, 247, 0.45);
+}
+
+input[type="color"] {
+  width: 100%;
+  height: 40px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  padding: 3px;
+  background: rgba(255, 255, 255, 0.08);
+  cursor: pointer;
 }
 
 .secondary-btn {

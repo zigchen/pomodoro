@@ -29,6 +29,9 @@ export const BG_MODE_KEY = 'pomodoro_bg_mode';
 export const BG_VALUE_KEY = 'pomodoro_bg_value';
 export const BG_YT_HISTORY_KEY = 'pomodoro_bg_yt_history';
 
+export const ACCENT_FOCUS_KEY = 'pomodoro_accent_focus';
+export const ACCENT_BREAK_KEY = 'pomodoro_accent_break';
+
 const DB_NAME = 'pomodoro-db';
 const STORE_NAME = 'kv';
 

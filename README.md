@@ -2,9 +2,9 @@
 
 A clean, single-page Pomodoro timer with:
 
-- An adjustable circular + linear progress bar (focus / short break / long break lengths, and how many focus sessions before a long break)
+- An adjustable circular + linear progress bar (focus / short break / long break lengths, and how many focus sessions before a long break), with customizable accent colors (a few muted-pastel presets, or pick any custom color)
 - A custom background: pick a preset gradient, upload your own image, or paste a YouTube link for a looping muted video background (requests the highest resolution YouTube will give it)
-- A Spotify player with two modes: **Quick** (paste a link, get an embedded player, zero setup, previews only) or **Log in** (your real account, full tracks, play/pause/skip, and a search box to find songs/playlists by name instead of needing a link)
+- A Spotify player with two modes: **Quick** (paste a link, get an embedded player, zero setup, previews only) or **Log in** (your real account, full tracks, play/pause/skip, search for songs/playlists by name, queue up tracks, and a toggleable "upcoming" panel)
 
 It's plain HTML/CSS/JS — no build step, no framework, no server required. That makes it a drag-and-drop deploy. The **Quick** Spotify mode needs nothing extra; the **Log in** mode needs a little one-time setup because Spotify requires every app to have its own registered Client ID and redirect URL (see below).
 
@@ -36,7 +36,13 @@ Then open **http://127.0.0.1:8080** (use `127.0.0.1`, not `localhost` — Spotif
 
 **Picking up where you left off:** in Log in mode, the app remembers whatever track/playlist was playing (and roughly where in it) and tries to resume automatically the next time the player reconnects — no need to re-paste the link. Browsers sometimes block automatic audio playback until you've clicked something on the page first; if it doesn't resume instantly, hitting play once will.
 
-**Searching instead of pasting a link:** once connected in Log in mode, a search box appears above the "paste a link" field — type a song or playlist name and click a result to play it. Search needs a valid Spotify access token, so it's Log in mode only; Quick mode still needs a pasted link since it never logs in.
+**Searching instead of pasting a link:** once connected in Log in mode, a search box appears above the "paste a link" field — type a song or playlist name and click a result to play it. Clicking a song result plays it now; the small **+** button next to a song adds it to your Spotify queue instead (only songs can be queued — Spotify's API doesn't support queueing a whole playlist at once). Search needs a valid Spotify access token, so it's Log in mode only; Quick mode still needs a pasted link since it never logs in.
+
+**Queue view:** below the search box, "Show upcoming queue" reveals what's playing next — off by default so it doesn't clutter the panel, and it remembers your choice. While it's open it refreshes automatically every 12 seconds; closing it stops the refreshing.
+
+## Customizing the accent colors
+
+Open **Settings → Theme** to change the colors used for the progress ring, buttons, and bar. Pick from a few muted-pastel presets (each swatch previews both the focus and break color), or set any exact color with the custom color pickers — these use your browser's native color picker, which includes a full color spectrum/wheel. Your choice persists across reloads.
 
 ## A note on YouTube background quality
 
@@ -76,7 +82,8 @@ index.html        Page structure
 styles.css         All styling (the ring progress bar, glass panels, layout)
 js/main.js         Wires everything together
 js/timer.js         Pomodoro countdown/session state machine
-js/spotify.js        Log-in mode: OAuth (PKCE), token refresh, Web Playback SDK, playback controls
+js/spotify.js        Log-in mode: OAuth (PKCE), token refresh, Web Playback SDK, search, queue
 js/background.js     Preset/upload/YouTube background switching + persistence
+js/theme.js            Accent color presets + custom colors
 js/storage.js         localStorage + IndexedDB helpers
 ```
